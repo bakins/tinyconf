@@ -30,10 +30,7 @@ func (f *fileResource) Run(ctx context.Context) (string, error) {
 
 	var tasks []func() (bool, error)
 
-	shouldExist := true
-	if f.State != nil && *f.State == "absent" {
-		shouldExist = false
-	}
+	shouldExist := f.State == nil || *f.State == "present"
 
 	// the if/else's are a bit gnarly here
 	// should cllean this up and maybe create smaller helper functions
