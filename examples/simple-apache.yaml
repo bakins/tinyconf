@@ -1,0 +1,8 @@
+---
+resources:
+  - type: package
+    name: apache2
+    state: installed
+  - type: service
+    name: apache2
+    state: running

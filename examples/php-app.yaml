@@ -1,0 +1,42 @@
+---
+resources:
+  # install dependencies for simple php app
+  - type: package
+    name: apache2
+    state: installed
+  - type: package
+    name: php
+    state: installed
+  - type: package
+    name: libapache2-mod-php
+    state: installed
+
+  # only serve php index
+  - type: file
+    path: /etc/apache2/mods-enabled/dir.conf
+    state: absent
+    notify:
+      service: apache2
+  - type: file
+    path: /etc/apache2/conf-enabled/php-index.conf
+    owner: root
+    mode: 0644
+    contents: |
+      DirectoryIndex index.php
+    notify:
+      service: apache2
+
+ # our very simple app
+  - type: file
+    path: /var/www/html/index.php
+    owner: www-data
+    group: www-data
+    mode: 0444
+    contents: |
+      <?php
+      header("Content-Type: text/plain");
+      echo "Hello, world!\n";
+
+  - type: service
+    name: apache2
+    state: running
