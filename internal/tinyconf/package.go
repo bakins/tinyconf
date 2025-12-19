@@ -69,10 +69,14 @@ func (s *packageResource) Run(ctx context.Context) (string, error) {
 
 type aptPackageManager struct{}
 
+// TODO: clean this up. It got messy as I ran into some unexpected results
+// while testing installing and uninstalling multiple times
+
 func (a *aptPackageManager) IsInstalled(ctx context.Context, packageName string) (bool, error) {
-	cmd := exec.CommandContext(ctx, "dpkg", "-s", packageName)
-	if err := cmd.Run(); err != nil {
-		// dpkg -s returns non-zero exit code when package is not installed
+	cmd := exec.CommandContext(ctx, "dpkg-query", "-W", "-f=${Status}", packageName)
+	output, err := cmd.Output()
+	if err != nil {
+		// dpkg-query returns non-zero exit code when package is not installed
 		if exitErr, ok := err.(*exec.ExitError); ok {
 			// exit code 1 means package not installed
 			if exitErr.ExitCode() == 1 {
@@ -82,7 +86,10 @@ func (a *aptPackageManager) IsInstalled(ctx context.Context, packageName string)
 		return false, fmt.Errorf("failed to check package %s status: %w", packageName, err)
 	}
 
-	return true, nil
+	// Check if package is actually fully installed (not half-configured, half-installed, etc)
+	// Status should be "install ok installed" for a properly installed package
+	status := string(output)
+	return status == "install ok installed", nil
 }
 
 func (a *aptPackageManager) Install(ctx context.Context, packageName string) error {
@@ -99,6 +106,13 @@ func (a *aptPackageManager) Install(ctx context.Context, packageName string) err
 	cmd.Env = []string{"DEBIAN_FRONTEND=noninteractive"}
 	if output, err := cmd.CombinedOutput(); err != nil {
 		return fmt.Errorf("failed to install package %s (output: %s): %w", packageName, string(output), err)
+	}
+
+	// Fix any broken dependencies - meta-packages like apache2 can leave deps in a broken state
+	fixCmd := exec.CommandContext(ctx, "apt", "install", "-f", "-y")
+	fixCmd.Env = []string{"DEBIAN_FRONTEND=noninteractive"}
+	if output, err := fixCmd.CombinedOutput(); err != nil {
+		return fmt.Errorf("failed to fix dependencies for %s (output: %s): %w", packageName, string(output), err)
 	}
 
 	return nil

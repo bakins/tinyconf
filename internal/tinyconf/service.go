@@ -91,6 +91,25 @@ func (s *serviceResource) Run(ctx context.Context) (string, error) {
 
 type systemdServiceManager struct{}
 
+// TODO: clean this up. It got messy as I ran into some unexpected results
+// while testing installing and uninstalling multiple times
+
+// for some packages if you uninstall, the service is masked and you have to manually unmask them
+// so let's try to do that automatically
+func (s *systemdServiceManager) unmaskIfNeeded(ctx context.Context, service string, output []byte, originalErr error) error {
+	if !strings.Contains(string(output), "masked") {
+		return originalErr
+	}
+
+	slog.Info("unmasking service", "name", service)
+	unmaskCmd := exec.CommandContext(ctx, "systemctl", "unmask", service)
+	if unmaskOutput, unmaskErr := unmaskCmd.CombinedOutput(); unmaskErr != nil {
+		return fmt.Errorf("failed to unmask service %s: (output: %s) %w", service, string(unmaskOutput), unmaskErr)
+	}
+
+	return nil
+}
+
 func (s *systemdServiceManager) IsRunning(ctx context.Context, service string) (bool, error) {
 	cmd := exec.CommandContext(ctx, "systemctl", "is-active", service)
 	output, err := cmd.Output()
@@ -113,7 +132,17 @@ func (s *systemdServiceManager) IsRunning(ctx context.Context, service string) (
 
 func (s *systemdServiceManager) Start(ctx context.Context, service string) error {
 	cmd := exec.CommandContext(ctx, "systemctl", "start", service)
-	if output, err := cmd.CombinedOutput(); err != nil {
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		// Try unmasking if the service is masked
+		if unmaskErr := s.unmaskIfNeeded(ctx, service, output, nil); unmaskErr == nil {
+			// Service was masked and successfully unmasked, retry
+			retryCmd := exec.CommandContext(ctx, "systemctl", "start", service)
+			if retryOutput, retryErr := retryCmd.CombinedOutput(); retryErr != nil {
+				return fmt.Errorf("failed to start service %s after unmasking: (output: %s) %w", service, string(retryOutput), retryErr)
+			}
+			return nil
+		}
 		return fmt.Errorf("failed to start service %s: (output: %s) %w", service, string(output), err)
 	}
 	return nil
@@ -129,7 +158,17 @@ func (s *systemdServiceManager) Stop(ctx context.Context, service string) error 
 
 func (s *systemdServiceManager) Restart(ctx context.Context, service string) error {
 	cmd := exec.CommandContext(ctx, "systemctl", "restart", service)
-	if output, err := cmd.CombinedOutput(); err != nil {
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		// Try unmasking if the service is masked
+		if unmaskErr := s.unmaskIfNeeded(ctx, service, output, nil); unmaskErr == nil {
+			// Service was masked and successfully unmasked, retry
+			retryCmd := exec.CommandContext(ctx, "systemctl", "restart", service)
+			if retryOutput, retryErr := retryCmd.CombinedOutput(); retryErr != nil {
+				return fmt.Errorf("failed to restart service %s after unmasking: (output: %s) %w", service, string(retryOutput), retryErr)
+			}
+			return nil
+		}
 		return fmt.Errorf("failed to restart service %s: (output: %s) %w", service, string(output), err)
 	}
 	return nil
