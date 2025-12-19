@@ -1,0 +1,13 @@
+version: "2"
+formatters:
+  enable:
+    - gci
+    - gofmt
+    - gofumpt
+    - goimports
+linters:
+  settings:
+    errcheck:
+      verbose: true
+      exclude-functions:
+        - (*os.File).Close

@@ -204,11 +204,6 @@ type runner interface {
 	Run(ctx context.Context) (string, error)
 }
 
-type configRun struct {
-	runners       []runner
-	notifications map[string]struct{}
-}
-
 func getUserAndGroup(username *string, groupname *string) (int, int, error) {
 	userID := -1
 	if username != nil && *username != "" {
