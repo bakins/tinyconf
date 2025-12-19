@@ -4,6 +4,8 @@ on:
   push:
     tags:
       - "v*" # Triggers on pushes to tags starting with v
+permissions:
+  contents: write
 
 jobs:
   release:
@@ -17,15 +19,12 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@v5
         with:
-          go-version-file: go.mod # Automatically detects the Go version from go.mod
+          go-version-file: go.mod
           cache: true
 
       - name: Run GoReleaser
         uses: goreleaser/goreleaser-action@v6
         with:
-          # You can use 'release' or 'snapshot' arguments
           args: release --clean
         env:
-          # GITHUB_TOKEN is required to publish the release and assets
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          
