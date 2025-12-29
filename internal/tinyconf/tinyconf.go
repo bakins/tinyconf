@@ -173,6 +173,8 @@ func configFromBytes(input []byte) (*config, error) {
 			err = v.Struct(res.Directory)
 		case "service":
 			err = v.Struct(res.Service)
+		case "package":
+			err = v.Struct(res.Package)
 		}
 		if err != nil {
 			return nil, fmt.Errorf("resource %d validation failed: %w", i, err)

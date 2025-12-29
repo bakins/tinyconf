@@ -268,7 +268,6 @@ resources:
 	}
 }
 
-// TestConfigFromBytes_MultilineContents tests parsing file with multiline contents
 func TestConfigFromBytes_MultilineContents(t *testing.T) {
 	yaml := `
 resources:
@@ -325,4 +324,31 @@ func TestConfigFromFile_InvalidYAML(t *testing.T) {
 
 	_, err = configFromFile(tmpfile.Name())
 	require.Error(t, err)
+}
+
+func TestConfigFromBytes_InvalidPackage(t *testing.T) {
+	yaml := `
+resources:
+  - type: package
+    name: httpd
+    state: invalid
+`
+	_, err := configFromBytes([]byte(yaml))
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "Field validation for 'State'")
+}
+
+func TestConfigFromBytes_ValidPackage(t *testing.T) {
+	yaml := `
+resources:
+  - type: package
+    name: httpd
+    state: installed
+    notify:
+       service: httpd
+`
+	cfg, err := configFromBytes([]byte(yaml))
+	require.NoError(t, err)
+	require.Len(t, cfg.Resources, 1)
+	require.Equal(t, "package", cfg.Resources[0].Type)
 }
