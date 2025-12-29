@@ -94,8 +94,9 @@ type systemdServiceManager struct{}
 // TODO: clean this up. It got messy as I ran into some unexpected results
 // while testing installing and uninstalling multiple times
 
-// for some packages if you uninstall, the service is masked and you have to manually unmask them
-// so let's try to do that automatically
+// For some packages when you uninstall, the service is masked and you have to manually unmask them
+// so let's try to do that automatically.
+// XXX: don't think this is still needed since I "fixed" some thigns in package.go
 func (s *systemdServiceManager) unmaskIfNeeded(ctx context.Context, service string, output []byte, originalErr error) error {
 	if !strings.Contains(string(output), "masked") {
 		return originalErr
